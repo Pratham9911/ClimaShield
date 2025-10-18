@@ -1,0 +1,7 @@
+# Treat all python code as text
+*.py text eol=lf
+
+# Treat model binaries as binary
+*.h5 binary
+*.pt binary
+*.pkl binary
