@@ -22,3 +22,10 @@ Make sure you have the following installed:
 ```bash
 git clone https://github.com/Pratham9911/ClimaShield.git
 cd ClimaShield
+```
+1. **Start the Project:**
+```bash
+npx expo start
+
+npx expo start --web
+```
