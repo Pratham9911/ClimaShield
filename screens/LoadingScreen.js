@@ -5,47 +5,60 @@ import {
   StyleSheet,
   ActivityIndicator,
   Image,
-  Animated,
-  Easing,
 } from "react-native";
+import { onAuthStateChanged } from "firebase/auth";
+import { auth } from "../firebase";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { LinearGradient } from 'expo-linear-gradient';
 
 export default function LoadingScreen({ navigation }) {
   useEffect(() => {
-    const timer = setTimeout(() => {
-      navigation.replace("Home"); // Navigate to HomeScreen after 2s
-    }, 2500);
-    return () => clearTimeout(timer);
-  }, []);
+  const timer = setTimeout(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        navigation.reset({ index: 0, routes: [{ name: "Dashboard" }] });
+      } else {
+        navigation.reset({ index: 0, routes: [{ name: "Home" }] });
+      }
+    });
+
+    return unsubscribe;
+  }, 2000); // <-- Minimum time in ms
+
+  return () => clearTimeout(timer);
+}, []);
 
   return (
-    <View style={styles.container}>
-      {/* Logo */}
+    <LinearGradient // Use LinearGradient as the container
+      colors={['#87CEEB', '#90EE90']} // Top to bottom gradient (light blue to light green)
+      style={styles.container}
+      start={{ x: 0, y: 0 }} // Start the gradient from top-left
+      end={{ x: 1, y: 1 }}   // End the gradient at bottom-right (for a diagonal effect)
+    >
       <Image
-        source={require("../assets/logo.png")}
+        source={require("../assets/logo.png")} // Make sure you have your icon saved as logo.png
         style={styles.logo}
         resizeMode="contain"
       />
 
-      {/* App Name */}
       <Text style={styles.title}>ClimaShield</Text>
 
-      {/* Circular Loading Indicator */}
       <ActivityIndicator
         size="large"
         color="#FFFFFF"
         style={{ marginTop: 30 }}
       />
 
-      {/* Subtitle */}
-      <Text style={styles.subtitle}>Protecting you from climate risks...</Text>
-    </View>
+      <Text style={styles.subtitle}>
+        Protecting you from climate risks...
+      </Text>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#4B0082",
     alignItems: "center",
     justifyContent: "center",
   },
