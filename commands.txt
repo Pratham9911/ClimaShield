@@ -1,4 +1,11 @@
 
-// $env:REACT_NATIVE_PACKAGER_HOSTNAME = "192.168.0.102"
+ $env:REACT_NATIVE_PACKAGER_HOSTNAME = "192.168.0.102"
 
-// echo $env:REACT_NATIVE_PACKAGER_HOSTNAME
+echo $env:REACT_NATIVE_PACKAGER_HOSTNAME
+
+(venv) PS D:\ClimaHealthAPP\ClimaShield\disaster-backend> uvicorn app:app --host 0.0.0.0 --port 
+
+ .\venv\Scripts\Activate.ps1
+uvicorn app:app --host 0.0.0.0 --port 8000
+
+python -m uvicorn app:app --reload

@@ -1,27 +1,31 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { StatusBar } from "react-native";
-
 
 // Import screens
 import HomeScreen from "./screens/HomeScreen";
 import LoginScreen from "./screens/LoginScreen";
 import SignUpScreen from "./screens/SignUpScreen";
 import LoadingScreen from "./screens/LoadingScreen";
-import OnboardingScreen from "./screens/OnboardingScreen"; // <-- ADD THIS
+import OnboardingScreen from "./screens/OnboardingScreen";
 import DashboardContainer from "./screens/DashboardContainer";
 import ForgotPasswordScreen from "./screens/ForgotPasswordScreen";
+
+// 🔥 IMPORT background task registration
+import { registerClimaBackgroundTask } from "./services/backgroundTasks";
 
 const Stack = createNativeStackNavigator();
 
 export default function App() {
+  // 🔧 Register background fetch when app loads
+  useEffect(() => {
+    registerClimaBackgroundTask();
+  }, []);
+
   return (
     <>
-      <StatusBar
-        barStyle="light-content"
-        backgroundColor="#4B0082"
-      />
+      <StatusBar barStyle="light-content" backgroundColor="#4B0082" />
 
       <NavigationContainer>
         <Stack.Navigator initialRouteName="Loading">
@@ -50,15 +54,23 @@ export default function App() {
             options={{ headerShown: false }}
           />
 
-
           <Stack.Screen
             name="OnboardingScreen"
             component={OnboardingScreen}
             options={{ headerShown: false }}
           />
 
-          <Stack.Screen name="Dashboard" component={DashboardContainer} options={{ headerShown: false }} />
-            <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+          <Stack.Screen
+            name="Dashboard"
+            component={DashboardContainer}
+            options={{ headerShown: false }}
+          />
+
+          <Stack.Screen
+            name="ForgotPassword"
+            component={ForgotPasswordScreen}
+            options={{ headerShown: false }}
+          />
 
         </Stack.Navigator>
       </NavigationContainer>

@@ -9,56 +9,82 @@ import {
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "../firebase";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { LinearGradient } from 'expo-linear-gradient';
+import * as Location from "expo-location";
+import { fetchPredictions } from "../services/api";
+
+const MIN_LOADING_MS = 2000;
 
 export default function LoadingScreen({ navigation }) {
   useEffect(() => {
-  const timer = setTimeout(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        navigation.reset({ index: 0, routes: [{ name: "Dashboard" }] });
+    let unsubscribeAuth;
+
+    const getAndStoreClimaData = async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== "granted") return;
+
+        const loc = await Location.getCurrentPositionAsync({});
+        const lat = loc.coords.latitude;
+        const lon = loc.coords.longitude;
+
+        const apiResponse = await fetchPredictions(lat, lon);
+
+        await AsyncStorage.setItem(
+          "clima_environment",
+          JSON.stringify(apiResponse.environment || {})
+        );
+        await AsyncStorage.setItem(
+          "clima_predictions",
+          JSON.stringify(apiResponse.predictions || {})
+        );
+      } catch (err) {
+        console.log("Error:", err);
+      }
+    };
+
+    const start = Date.now();
+
+    unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+      const navigateAfterDelay = (screen) => {
+        const elapsed = Date.now() - start;
+        const remaining = MIN_LOADING_MS - elapsed;
+        setTimeout(() => {
+          navigation.reset({ index: 0, routes: [{ name: screen }] });
+        }, Math.max(remaining, 0));
+      };
+
+      if (!user) {
+        navigateAfterDelay("Home");
       } else {
-        navigation.reset({ index: 0, routes: [{ name: "Home" }] });
+        getAndStoreClimaData(); // background
+        navigateAfterDelay("Dashboard");
       }
     });
 
-    return unsubscribe;
-  }, 2000); // <-- Minimum time in ms
-
-  return () => clearTimeout(timer);
-}, []);
+    return () => unsubscribeAuth && unsubscribeAuth();
+  }, [navigation]);
 
   return (
-    <LinearGradient // Use LinearGradient as the container
-      colors={['#87CEEB', '#90EE90']} // Top to bottom gradient (light blue to light green)
-      style={styles.container}
-      start={{ x: 0, y: 0 }} // Start the gradient from top-left
-      end={{ x: 1, y: 1 }}   // End the gradient at bottom-right (for a diagonal effect)
-    >
+    <View style={styles.container}>
       <Image
-        source={require("../assets/logo.png")} // Make sure you have your icon saved as logo.png
+        source={require("../assets/logo.png")}
         style={styles.logo}
         resizeMode="contain"
       />
 
       <Text style={styles.title}>ClimaShield</Text>
 
-      <ActivityIndicator
-        size="large"
-        color="#FFFFFF"
-        style={{ marginTop: 30 }}
-      />
+      <ActivityIndicator size="large" color="#ffffff" style={{ marginTop: 30 }} />
 
-      <Text style={styles.subtitle}>
-        Protecting you from climate risks...
-      </Text>
-    </LinearGradient>
+      <Text style={styles.subtitle}>Protecting you from climate risks...</Text>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: "#A08EFF", // 💜 Light purple background
     alignItems: "center",
     justifyContent: "center",
   },

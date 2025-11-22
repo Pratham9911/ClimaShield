@@ -30,6 +30,15 @@
       "eas": {
         "projectId": "e7ee36eb-b760-41e7-942f-05e119a44929"
       }
-    }
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow ClimaShield to access your location even when the app is closed.",
+          "isAndroidBackgroundLocationEnabled": true
+        }
+      ]
+    ]
   }
 }
