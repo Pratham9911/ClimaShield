@@ -3,6 +3,16 @@ node_modules/
 dist/
 build/
 .env
+
+# Python environment
 venv/
-disaster-backend/venv/
 */venv/
+disaster-backend/venv/
+
+__pycache__/
+
+# OS temporary files
+.DS_Store
+
+# Expo
+.expo-shared/
