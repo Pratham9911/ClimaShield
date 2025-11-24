@@ -1,4 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { auth, db } from "../firebase";
+import { doc, getDoc } from "firebase/firestore";
+
 import {
   View,
   StyleSheet,
@@ -16,19 +19,46 @@ import SettingsScreen from "./children/SettingsScreen";
 
 export default function DashboardContainer() {
   const [activeTab, setActiveTab] = useState("dashboard");
+  const [userData, setUserData] = useState(null);
 
+  // 🔥 Fetch user data once on load
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        const uid = auth.currentUser?.uid;
+        if (!uid) return;
+
+        const userRef = doc(db, "users", uid);
+        const snap = await getDoc(userRef);
+
+        if (snap.exists()) {
+          setUserData(snap.data());
+        }
+      } catch (err) {
+        console.log("Error fetching user:", err);
+      }
+    };
+
+    fetchUserData();
+  }, []);
+
+  // Pass userData to screens that need it
   const renderScreen = () => {
     switch (activeTab) {
       case "dashboard":
-        return <DashboardScreen />;
+        return <DashboardScreen user={userData} />;
+
       case "personal":
-        return <PersonalScreen />;
+        return <PersonalScreen user={userData} />;
+
       case "notifications":
         return <NotificationScreen />;
+
       case "settings":
         return <SettingsScreen />;
+
       default:
-        return <DashboardScreen />;
+        return <DashboardScreen user={userData} />;
     }
   };
 

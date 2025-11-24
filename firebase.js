@@ -1,4 +1,3 @@
-// firebase.js
 import { initializeApp } from "firebase/app";
 import {
   initializeAuth,
@@ -8,28 +7,28 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getFirestore } from "firebase/firestore";
 import { Platform } from "react-native";
+import Constants from "expo-constants";
+
+const { extra } = Constants.expoConfig;
 
 const firebaseConfig = {
-  apiKey: "AIzaSyCJhKm61fMjRYlV6t3-cRBvNeEqbjH8ZkU",
-  authDomain: "climashield-a71a0.firebaseapp.com",
-  projectId: "climashield-a71a0",
-  storageBucket: "climashield-a71a0.firebasestorage.app",
-  messagingSenderId: "474825076546",
-  appId: "1:474825076546:web:62a6fcb86dd4f2a53ee2db",
+  apiKey: extra.FIREBASE_API_KEY,
+  authDomain: extra.FIREBASE_AUTH_DOMAIN,
+  projectId: extra.FIREBASE_PROJECT_ID,
+  storageBucket: extra.FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: extra.FIREBASE_MESSAGING_SENDER_ID,
+  appId: extra.FIREBASE_APP_ID,
 };
 
-// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
 let auth;
 
-// ✔ Use native persistence for iOS/Android
 if (Platform.OS !== "web") {
   auth = initializeAuth(app, {
     persistence: getReactNativePersistence(AsyncStorage),
   });
 } else {
-  // ✔ Web fallback (IndexedDB)
   auth = getAuth(app);
 }
 

@@ -7,14 +7,17 @@
     "icon": "./assets/icon1.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
+
     "splash": {
       "image": "./assets/logo.png",
       "resizeMode": "contain",
       "backgroundColor": "#4B0082"
     },
+
     "ios": {
       "supportsTablet": true
     },
+
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon1.png",
@@ -23,14 +26,26 @@
       "edgeToEdgeEnabled": true,
       "package": "com.pratham_tiwari.climashield"
     },
+
     "web": {
       "favicon": "./assets/icon.png"
     },
+
     "extra": {
+      "API_BASE_URL": "http://192.168.0.106:8000",
+
+      "FIREBASE_API_KEY": "AIzaSyCJhKm61fMjRYlV6t3-cRBvNeEqbjH8ZkU",
+      "FIREBASE_AUTH_DOMAIN": "climashield-a71a0.firebaseapp.com",
+      "FIREBASE_PROJECT_ID": "climashield-a71a0",
+      "FIREBASE_STORAGE_BUCKET": "climashield-a71a0.firebasestorage.app",
+      "FIREBASE_MESSAGING_SENDER_ID": "474825076546",
+      "FIREBASE_APP_ID": "1:474825076546:web:62a6fcb86dd4f2a53ee2db",
+
       "eas": {
         "projectId": "e7ee36eb-b760-41e7-942f-05e119a44929"
       }
     },
+
     "plugins": [
       [
         "expo-location",

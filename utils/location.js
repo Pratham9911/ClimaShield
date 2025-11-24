@@ -1,8 +1,17 @@
 // src/utils/location.js
 import * as Location from "expo-location";
 
-export async function getUserLocation() {
+export async function getUserLocation(customLocation = null) {
   try {
+    // If custom location is passed, return it directly
+    if (customLocation?.lat && customLocation?.lon) {
+      return {
+        latitude: customLocation.lat,
+        longitude: customLocation.lon,
+        isCustom: true,
+      };
+    }
+
     // request permission
     let { status } = await Location.requestForegroundPermissionsAsync();
 
@@ -10,7 +19,7 @@ export async function getUserLocation() {
       return { error: "Permission denied" };
     }
 
-    // get coords
+    // get real device location
     let location = await Location.getCurrentPositionAsync({
       accuracy: Location.Accuracy.High,
     });
@@ -18,6 +27,7 @@ export async function getUserLocation() {
     return {
       latitude: location.coords.latitude,
       longitude: location.coords.longitude,
+      isCustom: false,
     };
 
   } catch (error) {

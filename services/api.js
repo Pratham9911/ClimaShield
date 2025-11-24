@@ -1,6 +1,10 @@
+import Constants from "expo-constants";
+
+const { extra } = Constants.expoConfig;
+
 export async function fetchPredictions(lat, lon) {
   try {
-    const response = await fetch("http://192.168.0.105:8000/predict", {
+    const response = await fetch(`${extra.API_BASE_URL}/predict_7days`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -9,7 +13,7 @@ export async function fetchPredictions(lat, lon) {
     });
 
     if (!response.ok) {
-      throw new Error(```Server error: ${response.status}`);
+      throw new Error(`Server error: ${response.status}`);
     }
 
     return await response.json();
