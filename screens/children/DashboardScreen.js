@@ -5,27 +5,32 @@ import * as Location from "expo-location";
 import { fetchPredictions } from "../../services/api";
 import AnalyticGraph from "../components/AnalyticGraph";
 import { Ionicons } from "@expo/vector-icons";
+import { getUserLocation } from "../../utils/location";
 
-export default function DashboardScreen({ user }) {
+import ToggleButton from "../components/ToggleButton";
+import DisasterGraph from "../components/DisasterGraph";
+export default function DashboardScreen({ navigation , route , user }) {
   const [env, setEnv] = useState(null);
   const [disasters, setDisasters] = useState(null);
   const [diseases, setDiseases] = useState(null);
   const [nextDays, setNextDays] = useState([]);
- const [intensity, setIntensity] = useState(1); 
- const [topDisasters, setTopDisasters] = useState([]);
+  const [intensity, setIntensity] = useState(1);
+  const [topDisasters, setTopDisasters] = useState([]);
   const refreshInterval = useRef(null);
+  const [showDisasterGraph, setShowDisasterGraph] = useState(false);
+
 
   const intensityColors = {
-  1: "#27a35bff",
-  2: "#937c22ff",
-  3: "#EF4444",
-};
+    1: "#27a35bff",
+    2: "#937c22ff",
+    3: "#EF4444",
+  };
 
 
-    const handleIntensityChange = (value) => {
+  const handleIntensityChange = (value) => {
     setIntensity(value); // 1–5
   };
-  
+
   useEffect(() => {
     loadInitialData();
     startAutoRefresh();
@@ -33,70 +38,79 @@ export default function DashboardScreen({ user }) {
     return () => {
       if (refreshInterval.current) clearInterval(refreshInterval.current);
     };
-  }, []);
+  }, [route?.params?.location]);
 
   const loadInitialData = async () => {
-    try {
-      const todayStore = await AsyncStorage.getItem("clima_today");
-      const nextStore = await AsyncStorage.getItem("clima_next7days");
+  try {
+    const customLoc = route?.params?.location || null;
 
-      if (todayStore) {
-        const parsed = JSON.parse(todayStore);
-        setEnv(parsed.environment);
-        setDisasters(parsed.disaster_predictions);
-        setDiseases(parsed.disease_predictions);
-      }
-
-      if (nextStore) setNextDays(JSON.parse(nextStore));
-
-      refreshData();
-    } catch (err) {
-      console.log("Load error:", err);
+    if (customLoc) {
+      // User selected a location → fetch new data directly
+      await refreshData();
+      return;
     }
-  };
+
+    // Otherwise load cached data
+    const todayStore = await AsyncStorage.getItem("clima_today");
+    const nextStore = await AsyncStorage.getItem("clima_next7days");
+
+    if (todayStore) {
+      const parsed = JSON.parse(todayStore);
+      setEnv(parsed.environment);
+      setDisasters(parsed.disaster_predictions);
+      setDiseases(parsed.disease_predictions);
+    }
+
+    if (nextStore) {
+      setNextDays(JSON.parse(nextStore));
+    }
+
+    // After loading, refresh with actual location
+    await refreshData();
+  } catch (err) {
+    console.log("Load error:", err);
+  }
+};
+
 
   const startAutoRefresh = () => {
     refreshInterval.current = setInterval(refreshData, 5 * 60 * 1000);
   };
 
   const refreshData = async () => {
-    try {
-      let { status } = await Location.getForegroundPermissionsAsync();
-      if (status !== "granted") {
-        ({ status } = await Location.requestForegroundPermissionsAsync());
-        if (status !== "granted") return;
-      }
-     const customLoc = {
-  lat: 28.376463793601037,
-  lon: 77.28688295502985
+  try {
+    // 1. Get custom location if passed from Map Picker
+    const customLoc = route?.params?.location || null;
+
+    // 2. Get actual location using your location.js logic
+    const loc = await getUserLocation(customLoc);
+
+    if (loc.error) return;
+
+    const lat = loc.latitude;
+    const lon = loc.longitude;
+    console.log("Using location:", lat, lon);
+    // 3. Fetch predictions
+    const api = await fetchPredictions(lat, lon);
+    if (!api) return;
+
+    const todayData = api.today;
+    const nextData = api.next7days || [];
+    
+    setEnv(todayData.environment);
+    setDisasters(todayData.disaster_predictions);
+    setDiseases(todayData.disease_predictions);
+    setNextDays(nextData);
+
+    // Optional: store locally
+    await AsyncStorage.setItem("clima_today", JSON.stringify(todayData));
+    await AsyncStorage.setItem("clima_next7days", JSON.stringify(nextData));
+
+  } catch (err) {
+    console.log("Refresh error:", err);
+  }
 };
 
-// const loc = await getUserLocation(customLoc);
-// console.log(loc);
-//       const lat = loc.latitude;
-//       const lon = loc.longitude;
-
-      const loc = await Location.getCurrentPositionAsync({});
-      const lat = loc.coords.latitude;
-      const lon = loc.coords.longitude;
-
-      const api = await fetchPredictions(lat, lon);
-      if (!api) return;
-
-      const todayData = api.today;
-      const nextData = api.next7days || [];
-
-      await AsyncStorage.setItem("clima_today", JSON.stringify(todayData));
-      await AsyncStorage.setItem("clima_next7days", JSON.stringify(nextData));
-
-      setEnv(todayData.environment);
-      setDisasters(todayData.disaster_predictions);
-      setDiseases(todayData.disease_predictions);
-      setNextDays(nextData);
-    } catch (err) {
-      console.log("Refresh error:", err);
-    }
-  };
 
   if (!env) {
     return (
@@ -148,23 +162,32 @@ export default function DashboardScreen({ user }) {
 
       {/* Location */}
 
-     <View style={styles.locationRow}>
-  <View style={[styles.redDot, { backgroundColor: intensityColors[intensity] }]} />
-  <Text style={[styles.locationText, { color: intensityColors[intensity] }]}>
-    {env?.place_name || "Your Location"}
-  </Text>
-</View>
+      <View style={styles.locationRow}>
+        <View style={[styles.redDot, { backgroundColor: intensityColors[intensity] }]} />
+        <Text style={[styles.locationText, { color: intensityColors[intensity] }]}>
+          {env?.place_name || "Your Location"}
+        </Text>
+      </View>
 
- <Text style={{ color: intensityColors[intensity] }}>
-        Current Intensity: {intensity}
-      </Text>
+
       {/* Placeholder Graph (Full width) */}
-       <View>
-      <AnalyticGraph 
-        nextDays={nextDays}
-        onIntensityChange={handleIntensityChange}
-          onTopDisastersChange={setTopDisasters}
-      />
+      <View>
+        <ToggleButton
+          active={showDisasterGraph}
+          onPress={() => setShowDisasterGraph(!showDisasterGraph)}
+        />
+
+        {showDisasterGraph ? (
+          <DisasterGraph nextDays={nextDays}
+            topDisasters={topDisasters}
+            />
+        ) : (
+          <AnalyticGraph
+            nextDays={nextDays}
+            onIntensityChange={handleIntensityChange}
+            onTopDisastersChange={setTopDisasters}
+          />
+        )}
       </View>
 
 
@@ -283,7 +306,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 2,
     paddingHorizontal: 20,
-    marginBottom: 10,
+    marginBottom: 15,
   },
 
   redDot: {

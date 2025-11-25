@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { auth, db } from "../firebase";
 import { doc, getDoc } from "firebase/firestore";
+import { getUserLocation } from "../utils/location";
 
 import {
   View,
@@ -16,8 +17,8 @@ import DashboardScreen from "./children/DashboardScreen";
 import PersonalScreen from "./children/PersonalScreen";
 import NotificationScreen from "./children/NotificationScreen";
 import SettingsScreen from "./children/SettingsScreen";
-
-export default function DashboardContainer() {
+import SelectLocationScreen from "./SelectLocationScreen";
+export default function DashboardContainer({navigation ,route}) {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [userData, setUserData] = useState(null);
 
@@ -43,24 +44,49 @@ export default function DashboardContainer() {
   }, []);
 
   // Pass userData to screens that need it
-  const renderScreen = () => {
-    switch (activeTab) {
-      case "dashboard":
-        return <DashboardScreen user={userData} />;
+const renderScreen = () => {
+  switch (activeTab) {
+    case "dashboard":
+      return (
+        <DashboardScreen
+          navigation={navigation}
+          route={route}
+          user={userData}
+        />
+      );
 
-      case "personal":
-        return <PersonalScreen user={userData} />;
+    case "personal":
+      return (
+        <PersonalScreen
+          navigation={navigation}
+          route={route}
+          user={userData}
+        />
+      );
 
-      case "notifications":
-        return <NotificationScreen />;
+    case "notifications":
+      return (
+        <NotificationScreen
+          navigation={navigation}
+          route={route}
+        />
+      );
 
-      case "settings":
-        return <SettingsScreen />;
+   case "settings":
+  return <SettingsScreen navigation={navigation} route={route} />;
 
-      default:
-        return <DashboardScreen user={userData} />;
-    }
-  };
+
+    default:
+      return (
+        <DashboardScreen
+          navigation={navigation}
+          route={route}
+          user={userData}
+        />
+      );
+  }
+};
+
 
   return (
     <SafeAreaView style={styles.safe}>

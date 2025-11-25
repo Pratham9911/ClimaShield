@@ -1,11 +1,11 @@
-import React, { useState , useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, Dimensions, Pressable } from "react-native";
 import Svg, { Path, Circle, Defs, LinearGradient, Stop } from "react-native-svg";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 
 const intensityColors = {
-  1: "#27a35bff", 
+  1: "#27a35bff",
   2: "#937c22ff",
   3: "#EF4444",
 };
@@ -16,7 +16,11 @@ function getIntensityLevel(hri) {
   return 1;
 }
 
-export default function AnalyticGraph({ nextDays, onIntensityChange, onTopDisastersChange }) {
+export default function AnalyticGraph({
+  nextDays,
+  onIntensityChange,
+  onTopDisastersChange,
+}) {
   if (!nextDays || nextDays.length === 0) return null;
 
   // Reorder so graph starts at today
@@ -27,49 +31,38 @@ export default function AnalyticGraph({ nextDays, onIntensityChange, onTopDisast
       ? nextDays
       : [...nextDays.slice(startIndex), ...nextDays.slice(0, startIndex)];
 
-  // Parse numeric values (your custom increasing test values kept untouched)
   let n = 1;
   const data = ordered.map((d) => {
     const raw = d.HRI ?? 0;
-    const v = typeof raw === "number" ? raw : parseFloat(raw);
-    let safe = isNaN(v) ? 0 : v;
-
-    // your testing increment kept
-    
-
-    return Math.max(0, Math.min(100, safe));
+    const safeValue = typeof raw === "number" ? raw : parseFloat(raw);
+    return Math.max(0, Math.min(100, isNaN(safeValue) ? 0 : safeValue));
   });
 
   const labels = ordered.map((d) => d.day);
   const todayHRI = data[0];
 
   // SAFE EFFECT FOR UPDATING PARENT
-useEffect(() => {
+  useEffect(() => {
+    let intensity = 1;
+    if (todayHRI > 60) intensity = 3;
+    else if (todayHRI > 40) intensity = 2;
 
-  // ---- INTENSITY ----
-  let intensity = 1;
-  if (todayHRI > 60) intensity = 3;
-  else if (todayHRI > 40) intensity = 2;
+    if (typeof onIntensityChange === "function") {
+      onIntensityChange(intensity);
+    }
 
-  if (typeof onIntensityChange === "function") {
-    onIntensityChange(intensity);
-  }
+    const disasters = nextDays[0]?.disasters || {};
 
-  // ---- TOP DISASTERS ----
-  const disasters = nextDays[0]?.disasters || {};
+    const topDisasters = Object.entries(disasters)
+      .filter(([name, value]) => value > 40)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 2)
+      .map(([name]) => name);
 
-  const topDisasters = Object.entries(disasters)
-    .filter(([name, value]) => value > 40)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 2)
-    .map(([name]) => name);
-
-  if (typeof onTopDisastersChange === "function") {
-    onTopDisastersChange(topDisasters);
-  }
-
-}, [todayHRI, nextDays]);   // <= IMPORTANT DEPENDENCIES
-
+    if (typeof onTopDisastersChange === "function") {
+      onTopDisastersChange(topDisasters);
+    }
+  }, [todayHRI, nextDays]);
 
   const chartHeight = 180;
   const graphOffsetTop = 20;
@@ -77,10 +70,10 @@ useEffect(() => {
 
   const step = data.length > 1 ? chartWidth / (data.length - 1) : 0;
 
-  // === FIX #2 — SOFT RANGE TO PREVENT HUGE SLOPES ===
+  // Range correction for flat lines
   let minVal = Math.min(...data);
   let maxVal = Math.max(...data);
-  const MIN_RANGE = 6; // difference <6 means nearly flat line
+  const MIN_RANGE = 6;
 
   if (maxVal - minVal < MIN_RANGE) {
     const pad = (MIN_RANGE - (maxVal - minVal)) / 2;
@@ -94,7 +87,7 @@ useEffect(() => {
     return graphOffsetTop + (chartHeight - normal * chartHeight);
   };
 
-  // Curve building
+  // Path build
   let path = `M 0 ${getY(data[0])}`;
   for (let i = 1; i < data.length; i++) {
     const x = i * step;
@@ -104,7 +97,6 @@ useEffect(() => {
     path += ` C ${px + step / 2} ${py}, ${x - step / 2} ${y}, ${x} ${y}`;
   }
 
-  // Today color for pointer + line
   const todayIntensity = getIntensityLevel(todayHRI);
   const baseColor = intensityColors[todayIntensity];
 
@@ -118,7 +110,6 @@ useEffect(() => {
     if (showTooltip) setTouching(true);
   };
 
-  // Graph touch
   const handleTouch = (evt) => {
     const x = Math.max(0, Math.min(chartWidth, evt.nativeEvent.locationX));
     const idx = Math.round(x / step);
@@ -127,25 +118,25 @@ useEffect(() => {
 
   const handleRelease = () => setTouching(false);
 
-  // === FIX #1 — Prevent pointer clipping on edges ===
-let rawX = activeIndex * step;
+  // POINTER CLAMPING like DisasterGraph
+  let rawX = activeIndex * step;
 
-// Fix only for first and last dot (pointer only)
-if (activeIndex === 0) {
-  rawX = 2; // push slightly inside
-}
-if (activeIndex === data.length - 1) {
-  rawX = chartWidth - 8; // push slightly inside
-}
+  if (activeIndex === 0) rawX = 10;
+  if (activeIndex === data.length - 1) rawX = chartWidth - 10;
 
-const dotX = rawX;
-
+  const dotX = rawX;
   const dotY = getY(data[activeIndex]);
+
+  // TOOLTIP PERFECT CLAMP (exact DisasterGraph logic)
+  const tooltipLeft = Math.max(
+    6,
+    Math.min(SCREEN_WIDTH - 110, dotX - 50)
+  );
 
   return (
     <View style={styles.container}>
 
-      {/* Fix: HRI moved slightly higher */}
+      {/* CENTER TEXT */}
       <View style={styles.centerBox}>
         <Text style={styles.hriValue}>{todayHRI.toFixed(1)}</Text>
         <Text style={styles.hriLabel}>Health Risk Index</Text>
@@ -176,7 +167,14 @@ const dotX = rawX;
             fill="url(#grad)"
           />
 
-          <Circle cx={dotX} cy={dotY} r={8} fill={baseColor} stroke="#fff" strokeWidth={3} />
+          <Circle
+            cx={dotX}
+            cy={dotY}
+            r={8}
+            fill={baseColor}
+            stroke="#fff"
+            strokeWidth={3}
+          />
         </Svg>
 
         {isTouching && (
@@ -184,7 +182,7 @@ const dotX = rawX;
             style={[
               styles.tooltip,
               {
-                left: dotX - 40,
+                left: tooltipLeft,
                 bottom: (chartHeight + graphOffsetTop) - dotY + 15,
               },
             ]}
@@ -199,10 +197,7 @@ const dotX = rawX;
       {/* DAY LABELS */}
       <View style={styles.labelsRow}>
         {labels.map((day, i) => (
-          <Pressable
-            key={i}
-            onPress={() => selectIndex(i, true)}   // FIX: tooltip shows from label click
-          >
+          <Pressable key={i} onPress={() => selectIndex(i, true)}>
             <Text
               style={[
                 styles.dayLabel,
@@ -214,7 +209,6 @@ const dotX = rawX;
           </Pressable>
         ))}
       </View>
-
     </View>
   );
 }
@@ -228,7 +222,7 @@ const styles = StyleSheet.create({
 
   centerBox: {
     position: "absolute",
-    top: 0,   // moved higher
+    top: 0,
     left: SCREEN_WIDTH / 2 - 60,
     zIndex: 20,
     alignItems: "center",

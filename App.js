@@ -11,7 +11,7 @@ import LoadingScreen from "./screens/LoadingScreen";
 import OnboardingScreen from "./screens/OnboardingScreen";
 import DashboardContainer from "./screens/DashboardContainer";
 import ForgotPasswordScreen from "./screens/ForgotPasswordScreen";
-
+import SelectLocationScreen from "./screens/SelectLocationScreen";
 // 🔥 IMPORT background task registration
 import { registerClimaBackgroundTask } from "./services/backgroundTasks";
 
@@ -71,6 +71,9 @@ export default function App() {
             component={ForgotPasswordScreen}
             options={{ headerShown: false }}
           />
+
+          <Stack.Screen name="SelectLocation" component={SelectLocationScreen} />
+
 
         </Stack.Navigator>
       </NavigationContainer>
