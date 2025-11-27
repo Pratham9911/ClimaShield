@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "474825076546",
+    "project_id": "climashield-a71a0",
+    "storage_bucket": "climashield-a71a0.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:474825076546:android:c4ab1d98e72b97483ee2db",
+        "android_client_info": {
+          "package_name": "com.pratham_tiwari.climashield"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCkApFawRK-xtTpfs-QWbvlM7Snax17gAc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
