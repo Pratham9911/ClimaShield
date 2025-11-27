@@ -276,30 +276,30 @@ async def fetch_environment_data(lat, lon):
 
     result["road_density"] = round(5 + (result["population_density"] / 1000.0), 3)
 
-    # -------------------------------------------------------------------
-    # NEXT 7 DAYS - with rolling averages (Option B)
-    # -------------------------------------------------------------------
+# -------------------------------------------------------------------
+# NEXT 7 DAYS - COSINE STABILIZED MODEL (FINAL)
+# -------------------------------------------------------------------
 
+    import math
+    
     fw_daily = future_weather.get("daily", {}) if future_weather else {}
     fa_hourly = future_air.get("hourly", {}) if future_air else {}
-
+    
     future_times = fw_daily.get("time", [])
-
-    # Build future weather sequences
+    
     fw_tmax = fw_daily.get("temperature_2m_max", []) or []
     fw_tmin = fw_daily.get("temperature_2m_min", []) or []
     fw_prec = fw_daily.get("precipitation_sum", []) or []
     fw_hmax = fw_daily.get("relative_humidity_2m_max", []) or []
     fw_hmin = fw_daily.get("relative_humidity_2m_min", []) or []
     fw_wind = fw_daily.get("windspeed_10m_max", []) or []
-
+    
+    # Mid values
     fut_temp = [(mx + mn) / 2 for mx, mn in zip(fw_tmax, fw_tmin)]
     fut_hum = [(mx + mn) / 2 for mx, mn in zip(fw_hmax, fw_hmin)]
     fut_wind = fw_wind
-
-    # ---------------------------
-    # Convert hourly AQ → daily
-    # ---------------------------
+    
+    # Daily AQ conversion
     daily_aq = {}
     if fa_hourly.get("time"):
         times_h = fa_hourly.get("time", [])
@@ -310,184 +310,112 @@ async def fetch_environment_data(lat, lon):
         no2_h = fa_hourly.get("nitrogen_dioxide", [])
         so2_h = fa_hourly.get("sulphur_dioxide", [])
         aqi_h = fa_hourly.get("us_aqi", [])
-
+    
+        pollutants = [
+            ("pm10", pm10_h), ("pm25", pm25_h), ("co", co_h),
+            ("o3", o3_h), ("no2", no2_h), ("so2", so2_h), ("aqi", aqi_h)
+        ]
+    
         for idx, t in enumerate(times_h):
             day = t.split("T")[0]
-            daily_aq.setdefault(day, {"pm10": [], "pm25": [], "co": [], "o3": [],
-                                      "no2": [], "so2": [], "aqi": []})
-
-            sources = [
-                ("pm10", pm10_h),
-                ("pm25", pm25_h),
-                ("co", co_h),
-                ("o3", o3_h),
-                ("no2", no2_h),
-                ("so2", so2_h),
-                ("aqi", aqi_h)
-            ]
-
-            for field, arr in sources:
+            daily_aq.setdefault(day, {k: [] for k, _ in pollutants})
+            for k, arr in pollutants:
                 if idx < len(arr) and arr[idx] is not None:
-                    daily_aq[day][field].append(arr[idx])
-
+                    daily_aq[day][k].append(arr[idx])
+    
         for day, vals in daily_aq.items():
             for k in vals:
                 clean = [v for v in vals[k] if v is not None]
                 vals[k] = float(statistics.mean(clean)) if clean else None
-
-    # -------------------------------------------------------------------
-    # Build rolling chains (past 7 + today + future)
-    # -------------------------------------------------------------------
-    past_temps = temps[-7:] if temps else []
-    past_hums = hums[-7:] if hums else []
-    past_winds = winds[-7:] if winds else []
-    past_rain = rains[-7:] if rains else []
-
+    
+    aq_keys = ["pm25", "pm10", "co", "o3", "no2", "so2", "aqi"]
+    
     today_temp = result["temp"]
     today_hum = result["humidity"]
     today_wind = result["wind_speed"]
     today_rain = result["rainfall_24h"]
-
-    chain_temp = past_temps + [today_temp] + fut_temp
-    chain_hum = past_hums + [today_hum] + fut_hum
-    chain_wind = past_winds + [today_wind] + fut_wind
-    chain_rain = past_rain + [today_rain] + fw_prec
-
-    IDX_TODAY = len(past_temps)
-
-    # AQ fallback lists
-    aq_keys = ["pm25", "pm10", "co", "o3", "no2", "so2", "aqi"]
-    aq_sequence = [daily_aq.get(d) for d in future_times]
-
-    next_days = []
-
-    for i, day in enumerate(future_times):
-
-        # Prevent out of range (rare Open-Meteo bug)
-        if i >= len(fut_temp) or i >= len(fut_hum) or i >= len(fut_wind) or i >= len(fw_prec):
-            continue
-
-        chain_index = IDX_TODAY + 1 + i
-
-        # Rolling average helpers (Option B = avg of last 3 available)
-        def last3(seq):
-            w = seq[max(0, chain_index - 2): chain_index + 1]
-            clean = [x for x in w if x is not None]
-            return statistics.mean(clean) if clean else None
-
-        def last7(seq):
-            w = seq[max(0, chain_index - 6): chain_index + 1]
-            clean = [x for x in w if x is not None]
-            return statistics.mean(clean) if clean else None
-
-        temp_3 = last3(chain_temp)
-        temp_7 = last7(chain_temp)
-
-        hum_3 = last3(chain_hum)
-        hum_7 = last7(chain_hum)
-
-        wind_3 = last3(chain_wind)
-        wind_7 = last7(chain_wind)
-
-        rain_3 = last3(chain_rain)
-        rain_7 = last7(chain_rain)
-
-        # -------------------------------------------------------------------
-        # AIR QUALITY FIX
-        # -------------------------------------------------------------------
-        day_aq = daily_aq.get(day)
-        aq_vals = {}
-
-        if day_aq:
-    # Real forecast available → use it (no None)
-         for k in aq_keys:
-          v = day_aq.get(k)
-          aq_vals[k] = v if v is not None else (result.get(k) or 0)
-
-        else:
-    # -------------------------------------------------------
-    # POLLUTANT-WISE FALLBACK (independent for each pollutant)
-    # -------------------------------------------------------
+    today_aq = {k: result.get(k) or 0 for k in aq_keys}
     
-    # Helper: get last 3 available values of pollutant k
-          def last3_pollutant(k):
-            vals = []
-
-        # Look backward from previous forecast days
-            for j in range(i - 1, i - 4, -1):
-             if j >= 0 and aq_sequence[j]:
-                v = aq_sequence[j].get(k)
-                if v is not None:
-                    vals.append(v)
-
-            return vals
-
-    # Build values pollutant-by-pollutant
-          for k in aq_keys:
-           vals = last3_pollutant(k)
-
-           if vals:
-            # Average last available values
-            aq_vals[k] = statistics.mean(vals)
-           else:
-            # No previous forecast → use today's pollutant (no None)
-            fallback = result.get(k)
-            aq_vals[k] = fallback if fallback is not None else 0
-
-       # Remove unnatural ozone drops (>50% drop from previous day)
-        if i > 0:
-          prev_o3 = next_days[-1]["o3"]
-          curr_o3 = aq_vals["o3"]
-
-          if prev_o3 is not None and curr_o3 is not None:
-           if curr_o3 < prev_o3 * 0.8:
-            aq_vals["o3"] = prev_o3 - prev_o3*0.05
-
+    # Cosine + clamp ±3%, no duplicates (except natural zeros)
+    def stabilize(val, today, prev, day_index):
+        # if no meaningful baseline, just return current value
+        if today is None or abs(today) < 1e-6:
+            return round(val if val is not None else 0.0, 2)
+    
+        base = val if val is not None else today
+    
+        # follow previous day a bit for smooth slope
+        if prev is not None:
+            base = 0.6 * base + 0.4 * prev
+    
+        # cosine wave over the horizon (smooth oscillation)
+        # using length of future_times so curve spreads over full 7 days
+        span = max(len(future_times) - 1, 1)
+        wave = math.cos(day_index * math.pi / span)  # from +1 to -1 smoothly
+        base += today * 0.01 * wave  # ±1% cosine modulation
+    
+        # clamp to ±3% band around today
+        lower = today * 0.97
+        upper = today * 1.03
+        base = max(min(base, upper), lower)
+    
+        # avoid duplicates: if too close to previous, nudge a tiny bit
+        if prev is not None and abs(base - prev) < abs(today) * 0.002:
+            adjust = today * 0.003 * (1 if (day_index % 2 == 0) else -1)
+            base += adjust
+            base = max(min(base, upper), lower)
+    
+        return round(base, 2)
+    
+    next_days = []
+    
+    for i, day in enumerate(future_times):
         try:
             day_name = datetime.fromisoformat(day).strftime("%a")
         except:
             day_name = ""
-
+    
+        prev_env = next_days[-1] if next_days else None
+    
+        # -------- AQ --------
+        real_aq = daily_aq.get(day)
+        aq_vals = {}
+        for k in aq_keys:
+            raw_v = real_aq.get(k) if real_aq and real_aq.get(k) is not None else today_aq[k]
+            prev_v = prev_env[k] if prev_env and k in prev_env else None
+            aq_vals[k] = stabilize(raw_v, today_aq[k], prev_v, i)
+    
+        # -------- WEATHER --------
+        raw_temp = fut_temp[i] if i < len(fut_temp) else today_temp
+        raw_hum = fut_hum[i] if i < len(fut_hum) else today_hum
+        raw_wind = fut_wind[i] if i < len(fut_wind) else today_wind
+        raw_rain = fw_prec[i] if i < len(fw_prec) else today_rain
+    
+        temp_val = stabilize(raw_temp, today_temp, prev_env["temp"] if prev_env else None, i)
+        hum_val = stabilize(raw_hum, today_hum, prev_env["humidity"] if prev_env else None, i)
+        wind_val = stabilize(raw_wind, today_wind, prev_env["wind_speed"] if prev_env else None, i)
+        rain_val = stabilize(raw_rain, today_rain, prev_env["rainfall_24h"] if prev_env else None, i)
+    
         day_env = {
             "date": day,
             "day": day_name,
             "latitude": lat,
             "longitude": lon,
             "place_name": result["place_name"],
-
-            "temp": fut_temp[i],
-            "humidity": fut_hum[i],
-            "rainfall_24h": fw_prec[i],
+            "temp": temp_val,
+            "humidity": hum_val,
+            "rainfall_24h": rain_val,
             "pressure": result["pressure"],
-            "wind_speed": fut_wind[i],
+            "wind_speed": wind_val,
             "wind_gusts": result["wind_gusts"],
-
-            "pm25": aq_vals["pm25"],
-            "pm10": aq_vals["pm10"],
-            "co": aq_vals["co"],
-            "o3": aq_vals["o3"],
-            "no2": aq_vals["no2"],
-            "so2": aq_vals["so2"],
-            "aqi": aq_vals["aqi"],
-
+            **aq_vals,
             "elevation": result["elevation"],
             "population_density": result["population_density"],
             "road_density": result["road_density"],
-
-            "temp_3d_avg": round(temp_3, 2) if temp_3 is not None else None,
-            "temp_7d_avg": round(temp_7, 2) if temp_7 is not None else None,
-
-            "rainfall_3d_avg": round(rain_3, 2) if rain_3 is not None else None,
-            "rainfall_7d_avg": round(rain_7, 2) if rain_7 is not None else None,
-
-            "humidity_3d_avg": round(hum_3, 2) if hum_3 is not None else None,
-            "humidity_7d_avg": round(hum_7, 2) if hum_7 is not None else None,
-
-            "wind_3d_avg": round(wind_3, 2) if wind_3 is not None else None,
-            "wind_7d_avg": round(wind_7, 2) if wind_7 is not None else None,
         }
-
+    
         next_days.append(day_env)
-
+    
     result["next_7_days"] = next_days
     return result
+    

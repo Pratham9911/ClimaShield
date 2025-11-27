@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, Dimensions, Pressable } from "react-native";
 import Svg, { Path, Circle, Defs, LinearGradient, Stop } from "react-native-svg";
 
+import AsyncStorage from "@react-native-async-storage/async-storage";
 const SCREEN_WIDTH = Dimensions.get("window").width;
 
 const intensityColors = {
@@ -43,26 +44,36 @@ export default function AnalyticGraph({
 
   // SAFE EFFECT FOR UPDATING PARENT
   useEffect(() => {
-    let intensity = 1;
-    if (todayHRI > 60) intensity = 3;
-    else if (todayHRI > 40) intensity = 2;
+  let intensity = 1;
+  if (todayHRI > 60) intensity = 3;
+  else if (todayHRI > 40) intensity = 2;
 
-    if (typeof onIntensityChange === "function") {
-      onIntensityChange(intensity);
-    }
+  if (typeof onIntensityChange === "function") {
+    onIntensityChange(intensity);
+  }
 
-    const disasters = nextDays[0]?.disasters || {};
+  const disastersToday = nextDays[0]?.disasters || {};
+  const disastersTomorrow = nextDays[1]?.disasters || {};
 
-    const topDisasters = Object.entries(disasters)
-      .filter(([name, value]) => value > 40)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 2)
-      .map(([name]) => name);
+  const topDisasters = Object.entries(disastersToday)
+    .filter(([name, value]) => value > 40)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 2)
+    .map(([name, value]) => ({
+      name,
+      today: value,
+      tomorrow: disastersTomorrow[name] ?? null,
+    }));
 
-    if (typeof onTopDisastersChange === "function") {
-      onTopDisastersChange(topDisasters);
-    }
-  }, [todayHRI, nextDays]);
+  if (typeof onTopDisastersChange === "function") {
+    onTopDisastersChange(topDisasters);
+  }
+
+  // ⭐ Store in AsyncStorage so ANY screen can access it directly
+  AsyncStorage.setItem("clima_topDisasters", JSON.stringify(topDisasters))
+    .catch((e) => console.log("Async store error:", e));
+
+}, [todayHRI]);
 
   const chartHeight = 180;
   const graphOffsetTop = 20;

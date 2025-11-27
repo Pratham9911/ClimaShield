@@ -1,12 +1,7 @@
-# utils.py
-
 def fix_missing(day_env, today_env=None):
     """
-    Smart fallback mechanism:
-
-    - If future-day value exists → use it.
-    - If future-day value is None → fallback to TODAY’s real value.
-    - If both missing → fallback to safe defaults.
+    Smart fallback ONLY for actual missing values (None or "Not available").
+    Does NOT override valid future estimates.
     """
 
     defaults = {
@@ -23,21 +18,20 @@ def fix_missing(day_env, today_env=None):
     fixed = {}
 
     for key in defaults.keys():
-        # future-day value
         v = day_env.get(key)
 
+        # REAL forecast / calculated fallback → KEEP IT
         if v is not None and v != "Not available":
             fixed[key] = v
             continue
 
-        # fallback to today
-        if today_env is not None:
+        # use today only when value is None
+        if today_env:
             tv = today_env.get(key)
             if tv is not None and tv != "Not available":
                 fixed[key] = tv
                 continue
 
-        # last fallback: defaults
         fixed[key] = defaults[key]
 
     return fixed

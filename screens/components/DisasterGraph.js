@@ -46,10 +46,12 @@ export default function DisasterGraph({
   // Extract labels and datasets
   const labels = nextDays.map((d) => d.day);
 
-  const datasets = selected.map((key) => {
+  const datasets = selected.map((ds) => {
+    const key = ds.name; // extract string name
     const values = nextDays.map((d) => d.disasters?.[key] ?? 0);
     return { key, values };
   });
+
 
   // === PER-DATASET INTENSITY (based on dataset's own values) ===
   // We'll compute a representative value (average across days) for each disaster,

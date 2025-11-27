@@ -1,3 +1,17 @@
+import * as Notifications from "expo-notifications";
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: false,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
+
+
+
 import React, { useEffect } from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
@@ -12,6 +26,7 @@ import OnboardingScreen from "./screens/OnboardingScreen";
 import DashboardContainer from "./screens/DashboardContainer";
 import ForgotPasswordScreen from "./screens/ForgotPasswordScreen";
 import SelectLocationScreen from "./screens/SelectLocationScreen";
+import EditProfileScreen from "./screens/settingComponents/EditProfileScreen";
 // 🔥 IMPORT background task registration
 import { registerClimaBackgroundTask } from "./services/backgroundTasks";
 
@@ -73,6 +88,7 @@ export default function App() {
           />
 
           <Stack.Screen name="SelectLocation" component={SelectLocationScreen} />
+          <Stack.Screen name="EditProfile" component={EditProfileScreen} />
 
 
         </Stack.Navigator>

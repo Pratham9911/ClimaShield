@@ -10,16 +10,32 @@ from datetime import datetime
 # HRI formula
 # ---------------------------------------------------------
 def calculate_hri(preds):
-    sorted_preds = sorted(preds.values(), reverse=True)
-    if len(sorted_preds) == 0:
+    if not preds:
         return 0
 
-    p1 = sorted_preds[0] if len(sorted_preds) > 0 else 0
-    p2 = sorted_preds[1] if len(sorted_preds) > 1 else 0
-    p3 = sorted_preds[2] if len(sorted_preds) > 2 else 0
+    # Top 3 sorted values
+    values = sorted(preds.values(), reverse=True)
+    p1 = values[0] if len(values) > 0 else 0
+    p2 = values[1] if len(values) > 1 else 0
+    p3 = values[2] if len(values) > 2 else 0
 
-    HRI = (0.5 * p1) + (0.3 * p2) + (0.2 * p3)
+    # NON-LINEAR influence (natural increasing pressure)
+    h1 = (p1 ** 1.32) / (100 ** 0.32)   # strongest effect
+    h2 = (p2 ** 1.18) / (100 ** 0.18)
+    h3 = (p3 ** 1.10) / (100 ** 0.10)
+
+    # Weighted combination
+    HRI = (0.6 * h1) + (0.25 * h2) + (0.15 * h3)
+
+    # Minimum real-world baseline: one severe hazard must reflect strongly
+    baseline = p1 * 0.90
+    HRI = max(HRI, baseline)
+
+    # Clamp
+    HRI = min(100, max(0, HRI))
+
     return round(HRI, 2)
+
 
 
 # ---------------------------------------------------------
@@ -152,7 +168,11 @@ def predict_next_7_days(env_list, today_preds=None):
 
     for idx, day_env in enumerate(env_list):
 
-        fixed = fix_missing(day_env)
+        # Only fix missing on TODAY (index 0)
+        if idx == 0:
+            fixed = fix_missing(day_env, env_list[0])
+        else:
+            fixed = day_env  # KEEP FUTURE ESTIMATED VALUES
 
         if idx == 0 and today_preds is not None:
             preds = today_preds
@@ -161,9 +181,6 @@ def predict_next_7_days(env_list, today_preds=None):
 
         hri = calculate_hri(preds)
 
-        # -----------------------------
-        # Ensure date + day always exist
-        # -----------------------------
         date_value = day_env.get("date")
         day_label = day_env.get("day")
 

@@ -9,6 +9,7 @@ import { getUserLocation } from "../../utils/location";
 
 import ToggleButton from "../components/ToggleButton";
 import DisasterGraph from "../components/DisasterGraph";
+import SuggestionBox from "../components/SuggestionBox";
 export default function DashboardScreen({ navigation , route , user }) {
   const [env, setEnv] = useState(null);
   const [disasters, setDisasters] = useState(null);
@@ -30,6 +31,17 @@ export default function DashboardScreen({ navigation , route , user }) {
   const handleIntensityChange = (value) => {
     setIntensity(value); // 1–5
   };
+
+const [blink, setBlink] = useState(true);
+
+useEffect(() => {
+  const interval = setInterval(() => {
+    setBlink(prev => !prev);
+  }, 500); // twice per second
+
+  return () => clearInterval(interval);
+}, []);
+
 
   useEffect(() => {
     loadInitialData();
@@ -129,20 +141,7 @@ export default function DashboardScreen({ navigation , route , user }) {
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      {/* Header */}
-      {/* <View style={styles.headerRow}>
-
-        <View style={styles.logoCircle}>
-          <Text style={styles.logoText}>
-            {user?.name ? user.name[0].toUpperCase() : "U"}
-          </Text>
-        </View>
-
-        <View >
-          <Ionicons name="notifications"  size={28} color="#c25353ff" />
-        </View>
-
-      </View> */}
+     
 
 
       {/* Today */}
@@ -192,18 +191,28 @@ export default function DashboardScreen({ navigation , route , user }) {
 
 
       {/* Live Updates */}
-      <View style={styles.liveContainer}>
-        <View style={styles.liveTitleRow}>
-          <View style={styles.purpleDot} />
-          <Text style={styles.liveTitle}>Live Updates & Suggestions</Text>
-        </View>
+     <View style={styles.liveContainer}>
+  <View style={styles.liveTitleRow}>
+    <View
+      style={[
+        styles.purpleDot,
+        { backgroundColor: blink ? "#9C7BFF" : "#E84A4A" } // blink purple <-> red
+      ]}
+    />
+    <Text
+      style={[
+        styles.liveTitle,
+        { color: blink ? "#9C7BFF" : "#E84A4A" } // also blink text color
+      ]}
+    >
+      Live Updates & Suggestions
+    </Text>
+  </View>
 
-        <Text style={styles.liveDesc}>
-          Heatwave alert in Delhi – High.{"\n"}
-          Stay hydrated – Heat index is rising and avoid{" "}
-          outdoor exposure – AQI is poor.
-        </Text>
-      </View>
+  <SuggestionBox topDisasters={topDisasters} diseases={diseases} />
+</View>
+
+
 
       {/* Bottom Scroll Row */}
       <ScrollView
